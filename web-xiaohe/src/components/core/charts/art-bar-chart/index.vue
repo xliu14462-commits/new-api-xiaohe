@@ -131,18 +131,26 @@
   } = useChartComponent({
     props,
     checkEmpty: () => {
-      // 检查单数据情况
+      // 检查单数据情况（纯数字数组）
       if (Array.isArray(props.data) && typeof props.data[0] === 'number') {
         const singleData = props.data as number[]
         return !singleData.length || singleData.every((val) => val === 0)
       }
 
-      // 检查多数据情况
+      // 检查多数据情况（带 name+data 数组的系列）
       if (Array.isArray(props.data) && typeof props.data[0] === 'object') {
-        const multiData = props.data as BarDataItem[]
+        // 带 .data 数组的才是多系列
+        if ('data' in props.data[0]) {
+          const multiData = props.data as BarDataItem[]
+          return (
+            !multiData.length ||
+            multiData.every((item) => !item.data?.length || item.data.every((val) => val === 0))
+          )
+        }
+        // 单系列但每根柱子独立颜色（{value, itemStyle} 格式）
         return (
-          !multiData.length ||
-          multiData.every((item) => !item.data?.length || item.data.every((val) => val === 0))
+          !props.data.length ||
+          (props.data as Array<{ value?: number }>).every((item) => !item.value || item.value === 0)
         )
       }
 
@@ -187,16 +195,24 @@
       // 生成系列数据
       if (isMultipleData.value) {
         const multiData = props.data as BarDataItem[]
+        // 堆叠模式：柱子之间无缝贴合
+        if (props.stack) {
+          ;(options as any).barGap = '-100%'
+        }
         options.series = multiData.map((item, index) => {
           const computedColor = getColor(props.colors[index], index)
-
-          return createSeriesItem({
+          const series: any = createSeriesItem({
             name: item.name,
             data: item.data,
             color: computedColor,
             barWidth: item.barWidth,
             stack: props.stack ? item.stack || 'total' : undefined
           })
+          // 堆叠时去掉每段柱子的圆角，避免出现缝隙
+          if (props.stack) {
+            series.itemStyle = { ...series.itemStyle, borderRadius: 0 }
+          }
+          return series
         })
       } else {
         // 单数据情况

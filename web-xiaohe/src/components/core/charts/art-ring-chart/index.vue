@@ -51,9 +51,9 @@
 
           switch (props.legendPosition) {
             case 'left':
-              return ['60%', '50%']
+              return ['55%', '50%']
             case 'right':
-              return ['40%', '50%']
+              return ['45%', '50%']
             case 'top':
               return ['50%', '60%']
             case 'bottom':
@@ -69,7 +69,12 @@
                 formatter: '{b}: {c} ({d}%)'
               })
             : undefined,
-          legend: props.showLegend ? getLegendStyle(props.legendPosition) : undefined,
+          legend: props.showLegend
+            ? {
+                ...getLegendStyle(props.legendPosition),
+                ...(props.legendPosition === 'left' ? { left: 80 } : {})
+              }
+            : undefined,
           series: [
             {
               name: '数据占比',
@@ -80,7 +85,7 @@
               itemStyle: {
                 borderRadius: props.borderRadius,
                 borderColor: isDark.value ? '#2c2c2c' : '#fff',
-                borderWidth: 0
+                borderWidth: 2
               },
               label: {
                 show: props.showLabel,
@@ -120,7 +125,7 @@
             textAlign: 'center',
             textVerticalAlign: 'middle',
             textStyle: {
-              fontSize: 18,
+              fontSize: 22,
               fontWeight: 500,
               color: isDark.value ? '#999' : '#ADB0BC'
             }

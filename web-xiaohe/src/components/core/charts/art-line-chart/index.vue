@@ -205,9 +205,10 @@
       animationDuration: isInitial ? 0 : 1300,
       animationDurationUpdate: isInitial ? 0 : 1300,
       grid: getGridWithLegend(props.showLegend && isMultipleData.value, props.legendPosition, {
-        top: 15,
-        right: 15,
-        left: 0
+        top: 20,
+        right: 30,
+        left: 20,
+        bottom: 10
       }),
       tooltip: props.showTooltip
         ? {
@@ -219,11 +220,14 @@
         : undefined,
       xAxis: {
         type: 'category',
-        boundaryGap: false,
+        boundaryGap: true,
         data: props.xAxisData,
         axisTick: getAxisTickStyle(),
         axisLine: getAxisLineStyle(props.showAxisLine),
-        axisLabel: getAxisLabelStyle(props.showAxisLabel)
+        axisLabel: {
+          ...getAxisLabelStyle(props.showAxisLabel),
+          fontSize: 11
+        }
       },
       yAxis: {
         type: 'value',

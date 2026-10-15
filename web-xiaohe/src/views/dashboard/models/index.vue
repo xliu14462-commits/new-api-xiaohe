@@ -1,159 +1,270 @@
 <template>
   <div v-loading="loading" class="flex flex-col gap-4">
+    <!-- 页头 -->
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h2 class="text-lg font-semibold text-g-900">{{ t('dashboard.modelAnalytics.title') }}</h2>
         <p class="mt-1 text-sm text-g-500">{{ currentRangeLabel }}</p>
       </div>
-      <ElButton @click="openFilterDialog">
-        <ArtSvgIcon class="mr-1" icon="ri:filter-3-line" />
+      <ElButton @click="openFilterDialog" class="!border-[#e8ecf0] !bg-white !text-g-700 hover:!border-theme hover:!text-theme">
+        <ArtSvgIcon class="mr-1.5" icon="ri:filter-3-line" />
         {{ t('dashboard.modelAnalytics.filter') }}
       </ElButton>
     </div>
 
-    <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
-      <ArtStatsCard
-        v-for="item in statCards"
+    <!-- 统计卡片：白底 + 浅灰边框 + 圆形柔和图标 -->
+    <div class="grid grid-cols-2 overflow-hidden rounded-xl border border-[#e8ecf0] bg-white lg:grid-cols-5">
+      <div
+        v-for="(item, idx) in statCards"
         :key="item.title"
-        :icon="item.icon"
-        :icon-style="item.iconStyle"
-        :title="item.title"
-        :display-value="item.value"
-        :description="item.description"
-      />
+        class="border-[#e8ecf0] p-5"
+        :class="[
+          'border-b',
+          idx < 4 ? 'lg:border-r lg:border-b-0' : 'lg:border-b-0',
+          idx >= 2 ? 'max-lg:border-b-0' : '',
+          idx % 2 === 0 ? 'max-lg:border-r' : ''
+        ]"
+      >
+        <div class="flex items-center gap-2.5">
+          <span
+            class="flex h-8 w-8 items-center justify-center rounded-full"
+            :class="item.iconBadge"
+          >
+            <ArtSvgIcon :icon="item.icon" class="text-sm" />
+          </span>
+          <span class="text-sm text-g-600">{{ item.title }}</span>
+        </div>
+        <div class="mt-3 font-mono text-2xl font-semibold tabular-nums text-g-900">
+          {{ item.value }}
+        </div>
+        <p class="mt-1 text-xs text-g-400">{{ item.description }}</p>
+      </div>
     </div>
 
-    <ElCard class="art-card" shadow="never">
-      <template #header>
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 class="font-semibold text-g-900">
-              {{ t('dashboard.modelAnalytics.quotaDistribution') }}
-            </h3>
-            <p class="mt-1 text-xs text-g-500">
-              {{ t('dashboard.modelAnalytics.total') }}: {{ totalQuotaLabel }}
-            </p>
-          </div>
-          <ElRadioGroup v-model="quotaChartMode" size="small">
-            <ElRadioButton value="bar">
-              {{ t('dashboard.modelAnalytics.barChart') }}
-            </ElRadioButton>
-            <ElRadioButton value="area">
-              {{ t('dashboard.modelAnalytics.areaChart') }}
-            </ElRadioButton>
-          </ElRadioGroup>
+    <!-- 额度分布图表卡片：圆角边框 + 胶囊 Tab -->
+    <div class="overflow-hidden rounded-xl border border-[#e8ecf0] bg-white">
+      <div class="flex w-full flex-col gap-1.5 border-b border-[#e8ecf0] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-2">
+          <span class="flex h-6 w-6 items-center justify-center rounded-md bg-theme/10 text-theme">
+            <ArtSvgIcon icon="ri:pie-chart-line" class="text-xs" />
+          </span>
+          <span class="text-sm font-semibold text-g-900">
+            {{ t('dashboard.modelAnalytics.quotaDistribution') }}
+          </span>
+          <span class="text-xs text-g-400">
+            {{ t('dashboard.modelAnalytics.total') }}: {{ totalQuotaLabel }}
+          </span>
         </div>
-      </template>
-      <ElEmpty v-if="!loading && !hasData" :description="t('dashboard.modelAnalytics.noData')" />
-      <ArtBarChart
-        v-else-if="quotaChartMode === 'bar'"
-        :data="chartData.quotaByTime"
-        :x-axis-data="chartData.timeLabels"
-        height="20rem"
-        :loading="loading"
-        value-prefix="$"
-      />
-      <ArtLineChart
-        v-else
-        :data="chartData.quotaAreaSeries"
-        :x-axis-data="chartData.timeLabels"
-        height="20rem"
-        :loading="loading"
-        value-prefix="$"
-        show-area-color
-      />
-    </ElCard>
-
-    <ElCard class="art-card" shadow="never">
-      <template #header>
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 class="font-semibold text-g-900">{{ t('dashboard.modelAnalytics.title') }}</h3>
-            <p class="mt-1 text-xs text-g-500">
-              {{ t('dashboard.modelAnalytics.total') }}:
-              {{ formatMetric(summary.totalCount, locale) }}
-            </p>
-          </div>
-          <ElRadioGroup v-model="analyticsTab" size="small">
-            <ElRadioButton value="trend">
-              {{ t('dashboard.modelAnalytics.callTrend') }}
-            </ElRadioButton>
-            <ElRadioButton value="distribution">
-              {{ t('dashboard.modelAnalytics.callDistribution') }}
-            </ElRadioButton>
-            <ElRadioButton value="ranking">
-              {{ t('dashboard.modelAnalytics.callRanking') }}
-            </ElRadioButton>
-          </ElRadioGroup>
+        <div class="bg-muted/60 inline-flex h-8 w-fit items-center rounded-lg border p-0.5">
+          <button
+            v-for="opt in [
+              { value: 'bar', label: t('dashboard.modelAnalytics.barChart') },
+              { value: 'area', label: t('dashboard.modelAnalytics.areaChart') }
+            ]"
+            :key="opt.value"
+            @click="quotaChartMode = opt.value as 'bar' | 'area'"
+            class="shrink-0 rounded-md px-3 py-1 text-xs font-medium transition-colors"
+            :class="quotaChartMode === opt.value
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-g-500 hover:text-g-900'"
+          >
+            {{ opt.label }}
+          </button>
         </div>
-      </template>
-      <ElEmpty v-if="!loading && !hasData" :description="t('dashboard.modelAnalytics.noData')" />
-      <ArtLineChart
-        v-else-if="analyticsTab === 'trend'"
-        :data="chartData.callTrendSeries"
-        :x-axis-data="chartData.timeLabels"
-        height="20rem"
-        :loading="loading"
-        show-legend
-      />
-      <ArtRingChart
-        v-else-if="analyticsTab === 'distribution'"
-        :data="chartData.callDistribution"
-        :center-text="formatMetric(summary.totalCount, locale)"
-        height="20rem"
-        :loading="loading"
-        show-legend
-      />
-      <ArtHBarChart
-        v-else
-        :data="chartData.callRankingValues"
-        :x-axis-data="chartData.callRankingLabels"
-        height="20rem"
-        :loading="loading"
-      />
-    </ElCard>
+      </div>
+      <div class="p-2">
+        <ElEmpty v-if="!loading && !hasData" :description="t('dashboard.modelAnalytics.noData')" />
+        <ArtBarChart
+          v-else-if="quotaChartMode === 'bar'"
+          :data="chartData.quotaByModel"
+          :x-axis-data="chartData.timeLabels"
+          height="20rem"
+          :loading="loading"
+          value-prefix="$"
+          :show-legend="true"
+          legend-position="top"
+          :stack="true"
+        />
+        <ArtLineChart
+          v-else
+          :data="chartData.quotaByModel"
+          :x-axis-data="chartData.timeLabels"
+          height="20rem"
+          :loading="loading"
+          value-prefix="$"
+          show-area-color
+          show-legend
+        />
+      </div>
+    </div>
 
+    <!-- 模型调用分析图表卡片：圆角边框 + 胶囊 Tab -->
+    <div class="overflow-hidden rounded-xl border border-[#e8ecf0] bg-white">
+      <div class="flex w-full flex-col gap-1.5 border-b border-[#e8ecf0] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-2">
+          <span class="flex h-6 w-6 items-center justify-center rounded-md bg-theme/10 text-theme">
+            <ArtSvgIcon icon="ri:line-chart-line" class="text-xs" />
+          </span>
+          <span class="text-sm font-semibold text-g-900">
+            {{ t('dashboard.modelAnalytics.title') }}
+          </span>
+          <span class="text-xs text-g-400">
+            {{ t('dashboard.modelAnalytics.total') }}:
+            {{ formatMetric(summary.totalCount, locale) }}
+          </span>
+        </div>
+        <div class="bg-muted/60 inline-flex h-8 w-fit items-center rounded-lg border p-0.5">
+          <button
+            v-for="tab in [
+              { value: 'trend', label: t('dashboard.modelAnalytics.callTrend') },
+              { value: 'distribution', label: t('dashboard.modelAnalytics.callDistribution') },
+              { value: 'ranking', label: t('dashboard.modelAnalytics.callRanking') }
+            ]"
+            :key="tab.value"
+            @click="analyticsTab = tab.value as any"
+            class="shrink-0 rounded-md px-3 py-1 text-xs font-medium transition-colors"
+            :class="analyticsTab === tab.value
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-g-500 hover:text-g-900'"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+      </div>
+      <div class="p-2">
+        <ElEmpty v-if="!loading && !hasData" :description="t('dashboard.modelAnalytics.noData')" />
+        <ArtLineChart
+          v-else-if="analyticsTab === 'trend'"
+          :data="chartData.callTrendSeries"
+          :x-axis-data="chartData.timeLabels"
+          height="20rem"
+          :loading="loading"
+          show-legend
+          show-area-color
+        />
+        <ArtRingChart
+          v-else-if="analyticsTab === 'distribution'"
+          :data="chartData.callDistribution"
+          height="20rem"
+          :loading="loading"
+          show-legend
+          legend-position="left"
+          :show-label="true"
+          :radius="['35%', '60%']"
+        />
+        <ArtBarChart
+          v-else
+          :data="chartData.callRankingValues"
+          :x-axis-data="chartData.callRankingLabels"
+          height="20rem"
+          :loading="loading"
+          show-legend
+          legend-position="bottom"
+        />
+      </div>
+    </div>
+
+    <!-- 筛选弹窗 -->
     <ElDialog
       v-model="filterDialogVisible"
-      :title="t('dashboard.modelAnalytics.filterTitle')"
       width="32rem"
+      class="model-filter-dialog"
     >
-      <ElForm label-position="top">
-        <ElFormItem :label="t('dashboard.modelAnalytics.quickRange')">
-          <div class="grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
-            <ElButton
+      <template #header>
+        <div class="flex items-start justify-between pr-8">
+          <div>
+            <h3 class="text-base font-semibold text-g-900">{{ t('dashboard.modelAnalytics.filterTitle') }}</h3>
+            <p class="mt-0.5 text-xs text-g-400">按时间范围和用户筛选模型分析视图</p>
+          </div>
+        </div>
+      </template>
+
+      <div class="flex flex-col gap-4">
+        <!-- 快速时间范围 -->
+        <div>
+          <div class="mb-2 flex items-center gap-1.5 text-sm font-medium text-g-700">
+            <ArtSvgIcon icon="ri:calendar-line" class="text-xs" />
+            快速范围
+          </div>
+          <div class="grid grid-cols-4 gap-2">
+            <button
               v-for="preset in rangePresets"
               :key="preset.days"
-              :type="selectedPresetDays === preset.days ? 'primary' : 'default'"
               @click="selectQuickRange(preset.days)"
+              class="h-9 rounded-lg border text-sm font-medium transition-all"
+              :class="selectedPresetDays === preset.days
+                ? 'border-blue-500 bg-blue-500 text-white ring-2 ring-blue-200'
+                : 'border-[#e8ecf0] bg-white text-g-600 hover:border-g-300'"
             >
               {{ t(preset.label) }}
-            </ElButton>
+            </button>
           </div>
-        </ElFormItem>
-        <ElFormItem :label="t('dashboard.modelAnalytics.customRange')">
+        </div>
+
+        <!-- 分隔线 -->
+        <div class="relative">
+          <div class="absolute inset-0 flex items-center">
+            <span class="w-full border-t border-[#e8ecf0]" />
+          </div>
+          <div class="relative flex justify-center">
+            <span class="bg-white px-3 text-xs text-g-400">自定义时间范围</span>
+          </div>
+        </div>
+
+        <!-- 起始/结束时间 -->
+        <div>
+          <label class="mb-1.5 block text-sm text-g-700">起始时间</label>
           <ElDatePicker
-            v-model="draftRange"
+            :model-value="draftRange[0]"
+            @update:model-value="(val: Date) => { draftRange[0] = val; selectedPresetDays = null }"
             class="w-full"
-            type="datetimerange"
-            range-separator="-"
+            type="datetime"
+            placeholder="选择起始时间"
             :clearable="false"
-            @change="selectedPresetDays = null"
           />
-        </ElFormItem>
-        <ElFormItem :label="t('dashboard.modelAnalytics.granularity')">
-          <ElSelect v-model="draftGranularity" class="w-full">
+        </div>
+        <div>
+          <label class="mb-1.5 block text-sm text-g-700">结束时间</label>
+          <ElDatePicker
+            :model-value="draftRange[1]"
+            @update:model-value="(val: Date) => { draftRange[1] = val; selectedPresetDays = null }"
+            class="w-full"
+            type="datetime"
+            placeholder="选择结束时间"
+            :clearable="false"
+          />
+        </div>
+
+        <!-- 分隔线 -->
+        <div class="relative">
+          <div class="absolute inset-0 flex items-center">
+            <span class="w-full border-t border-[#e8ecf0]" />
+          </div>
+          <div class="relative flex justify-center">
+            <span class="bg-white px-3 text-xs text-g-400">图表设置</span>
+          </div>
+        </div>
+
+        <!-- 时间粒度 -->
+        <div>
+          <label class="mb-1.5 block text-sm text-g-700">时间粒度</label>
+          <ElSelect v-model="draftGranularity" style="width: 10rem">
             <ElOption :label="t('dashboard.modelAnalytics.hour')" value="hour" />
             <ElOption :label="t('dashboard.modelAnalytics.day')" value="day" />
             <ElOption :label="t('dashboard.modelAnalytics.week')" value="week" />
           </ElSelect>
-        </ElFormItem>
-      </ElForm>
+        </div>
+      </div>
+
       <template #footer>
         <div class="flex justify-end gap-2">
-          <ElButton @click="resetFilters">{{ t('dashboard.modelAnalytics.reset') }}</ElButton>
-          <ElButton type="primary" @click="applyFilters">
-            {{ t('dashboard.modelAnalytics.apply') }}
+          <ElButton @click="resetFilters" class="!rounded-lg !border-[#e8ecf0] !bg-white">
+            <ArtSvgIcon class="mr-1" icon="ri:reset-left-line" />
+            {{ t('dashboard.modelAnalytics.reset') }}
+          </ElButton>
+          <ElButton type="primary" @click="applyFilters" class="!rounded-lg">
+            <ArtSvgIcon class="mr-1" icon="ri:search-line" />
+            应用筛选器
           </ElButton>
         </div>
       </template>
@@ -234,35 +345,35 @@
       value: formatMetric(summary.value.totalCount, locale.value),
       description: t('dashboard.modelAnalytics.totalCountHint'),
       icon: 'ri:hashtag',
-      iconStyle: 'bg-theme'
+      iconBadge: 'bg-blue-50 text-blue-500'
     },
     {
       title: t('dashboard.modelAnalytics.totalQuota'),
       value: totalQuotaLabel.value,
       description: t('dashboard.modelAnalytics.totalQuotaHint'),
       icon: 'ri:coins-line',
-      iconStyle: 'bg-success'
+      iconBadge: 'bg-emerald-50 text-emerald-500'
     },
     {
       title: t('dashboard.modelAnalytics.totalTokens'),
       value: formatTokenMetric(summary.value.totalTokens, locale.value),
       description: t('dashboard.modelAnalytics.totalTokensHint'),
       icon: 'ri:stack-line',
-      iconStyle: 'bg-info'
+      iconBadge: 'bg-violet-50 text-violet-500'
     },
     {
       title: t('dashboard.modelAnalytics.averageRpm'),
       value: formatMetric(summary.value.averageRpm, locale.value, 3),
       description: t('dashboard.modelAnalytics.averageRpmHint'),
       icon: 'ri:speed-up-line',
-      iconStyle: 'bg-secondary'
+      iconBadge: 'bg-amber-50 text-amber-500'
     },
     {
       title: t('dashboard.modelAnalytics.averageTpm'),
       value: formatTokenMetric(summary.value.averageTpm, locale.value),
       description: t('dashboard.modelAnalytics.averageTpmHint'),
       icon: 'ri:flashlight-line',
-      iconStyle: 'bg-warning'
+      iconBadge: 'bg-rose-50 text-rose-500'
     }
   ])
 
@@ -310,7 +421,6 @@
   /**
    * 选择快捷时间范围并匹配推荐聚合粒度
    * @param days 最近天数
-   * @returns 无返回值
    */
   const selectQuickRange = (days: number): void => {
     const recentFilters = createRecentFilters(days)
@@ -324,7 +434,6 @@
 
   /**
    * 应用弹窗中的筛选条件并重新加载数据
-   * @returns 无返回值
    */
   const applyFilters = (): void => {
     filters.value = {
@@ -338,7 +447,6 @@
 
   /**
    * 恢复默认最近一天筛选并重新加载数据
-   * @returns 无返回值
    */
   const resetFilters = (): void => {
     filters.value = createRecentFilters(1)
@@ -349,3 +457,33 @@
 
   onMounted(loadAnalytics)
 </script>
+
+<style scoped>
+  :deep(.model-filter-dialog) {
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  :deep(.model-filter-dialog .el-dialog__header) {
+    padding: 16px 20px 12px;
+    margin-right: 0;
+    border-bottom: 1px solid #e8ecf0;
+  }
+  :deep(.model-filter-dialog .el-dialog__title) {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a2e;
+  }
+  :deep(.model-filter-dialog .el-dialog__body) {
+    padding: 16px 20px;
+    color: #4d5875;
+    font-size: 13px;
+  }
+  :deep(.model-filter-dialog .el-dialog__footer) {
+    padding: 12px 20px 16px;
+    border-top: 1px solid #e8ecf0;
+  }
+  :deep(.model-filter-dialog .el-button) {
+    border-radius: 8px;
+    font-weight: 500;
+  }
+</style>

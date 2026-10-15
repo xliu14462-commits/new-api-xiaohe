@@ -47,3 +47,9 @@ service/openaicompat/chat_responses_live_local_test.go
 go.work
 go.work.sum
 
+# 临时调试脚本
+seed_quota_data.py
+seed_mock_data.py
+inspect_db.py
+cleanup_logs.py
+

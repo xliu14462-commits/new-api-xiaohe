@@ -65,15 +65,16 @@ export const useChartOps = (): ChartThemeConfig => ({
   fontColor: '#999',
   /** 主题颜色 */
   themeColor: getCssVar('--el-color-primary-light-1'),
-  /** 颜色组 */
+  /** 颜色组（对齐 new-api VChart 默认色板，按字母排序的模型依次取色） */
   colors: [
-    getCssVar('--el-color-primary-light-1'),
-    '#4ABEFF',
-    '#EDF2FF',
-    '#14DEBA',
-    '#FFAF20',
-    '#FA8A6C',
-    '#FFAF20'
+    '#3B82F6', // blue    — claude-3-5-sonnet
+    '#06B6D4', // cyan    — deepseek-chat
+    '#F97316', // orange  — gpt-4o
+    '#16A34A', // green   — gpt-4o-mini
+    '#8B5CF6', // violet  — qwen-plus
+    '#EC4899', // pink
+    '#F59E0B', // amber
+    '#6366F1'  // indigo
   ]
 })
 

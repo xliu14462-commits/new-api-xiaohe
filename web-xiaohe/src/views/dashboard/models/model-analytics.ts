@@ -20,6 +20,7 @@ export interface AnalyticsSummary {
 export interface AnalyticsChartData {
   timeLabels: string[]
   quotaByTime: number[]
+  quotaByModel: LineDataItem[]
   quotaAreaSeries: LineDataItem[]
   callTrendSeries: LineDataItem[]
   callDistribution: PieDataItem[]
@@ -104,7 +105,7 @@ export function buildAnalyticsChartData(
 ): AnalyticsChartData {
   const sortedRows = [...data].sort((a, b) => a.created_at - b.created_at)
   const timestamps = [...new Set(sortedRows.map((item) => item.created_at))]
-  const models = [...new Set(sortedRows.map((item) => item.model_name || UNKNOWN_MODEL))]
+  const models = [...new Set(sortedRows.map((item) => item.model_name || UNKNOWN_MODEL))].sort()
   const quotaByTimestamp = new Map<number, number>()
   const callsByModel = new Map<string, number>()
   const callsByModelAndTime = new Map<string, Map<number, number>>()
@@ -127,9 +128,23 @@ export function buildAnalyticsChartData(
   const ranking = [...callsByModel.entries()].sort((a, b) => b[1] - a[1])
   const quotaByTime = timestamps.map((timestamp) => quotaByTimestamp.get(timestamp) || 0)
 
+  // 按模型拆分额度（用于堆叠柱状图）
+  const quotaByModelMap = new Map<string, Map<number, number>>()
+  for (const row of sortedRows) {
+    const model = row.model_name || UNKNOWN_MODEL
+    if (!quotaByModelMap.has(model)) quotaByModelMap.set(model, new Map())
+    const m = quotaByModelMap.get(model)!
+    m.set(row.created_at, (m.get(row.created_at) || 0) + Number(row.quota || 0) / quotaPerUnit)
+  }
+  const quotaByModel: LineDataItem[] = models.map((model) => ({
+    name: model,
+    data: timestamps.map((ts) => quotaByModelMap.get(model)?.get(ts) || 0)
+  }))
+
   return {
     timeLabels: timestamps.map((timestamp) => formatTimeLabel(timestamp, granularity, locale)),
     quotaByTime,
+    quotaByModel,
     quotaAreaSeries: [
       {
         name: 'Quota',
@@ -141,9 +156,23 @@ export function buildAnalyticsChartData(
       name: model,
       data: timestamps.map((timestamp) => callsByModelAndTime.get(model)?.get(timestamp) || 0)
     })),
-    callDistribution: ranking.map(([name, value]) => ({ name, value })),
-    callRankingLabels: ranking.map(([name]) => name).reverse(),
-    callRankingValues: ranking.map(([, value]) => value).reverse()
+    callDistribution: models.map((model) => ({
+      name: model,
+      value: callsByModel.get(model) || 0
+    })),
+    callRankingLabels: ranking.map(([name]) => name),
+    callRankingValues: ranking.map(([name, value]) => ({
+      value,
+      itemStyle: {
+        color: [
+          '#3B82F6', // claude-3-5-sonnet
+          '#06B6D4', // deepseek-chat
+          '#F97316', // gpt-4o
+          '#16A34A', // gpt-4o-mini
+          '#8B5CF6'  // qwen-plus
+        ][models.indexOf(name)] || '#3B82F6'
+      }
+    }))
   }
 }
 
